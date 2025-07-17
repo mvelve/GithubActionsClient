@@ -1,0 +1,21 @@
+{
+  "name": "github-actions-client",
+  "version": "1.0.0",
+  "description": "lightweight github test client",
+  "main": "index.js",
+  "scripts": {
+    "dev": "ts-node src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "author": "Michael Velve",
+  "license": "MIT",
+  "devDependencies": {
+    "dotenv": "^17.2.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "octokit": "^5.0.3"
+  }
+}
