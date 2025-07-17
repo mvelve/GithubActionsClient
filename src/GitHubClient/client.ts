@@ -3,7 +3,7 @@
 //load environment variables
 import dotenv from "dotenv";
 import { Octokit } from "octokit"; //may need octokit wait on this
-import Answer from "../IAnswer";
+import Answer from "../Interfaces/IAnswer";
 dotenv.config();
 
 export default class GithubClient {
@@ -16,21 +16,21 @@ export default class GithubClient {
   }
 
   //isolate functionality within this class
-  async requestActionWorkflow() {
+  async checkActionExists(): Promise<boolean> {
     try {
       await this.octokitClient.repos.getContent({
         owner: this.userAnswer.repoOwner,
         repo: this.userAnswer.repoName,
         path: `${this.userAnswer.workFlowFileName}.yml`,
       });
+      return true;
     } catch (err: any) {
       if (err.status === 404) {
         console.log("Workflow file not found.");
       } else {
         console.error("GitHub API error:", err.status, err.message);
       }
-
-      //now you need something in here so that you can create it
+      return false;
     }
   }
 
