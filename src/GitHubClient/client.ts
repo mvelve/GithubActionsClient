@@ -1,4 +1,5 @@
 "use strict";
+import path from "path";
 
 //load environment variables
 import dotenv from "dotenv";
@@ -34,28 +35,29 @@ export default class GithubClient {
     }
   }
 
-  /*
-await octokit.request('PUT /repos/{owner}/{repo}/contents/{path}', {
-            owner: owner,
-            repo: "",
-            path: ".github/workflows/my-workflow.yml",
-            message,
-            committer: {
-                name:owner,
-                email:"assoulsidali@gmail.com",
-            },
-            content,
-            headers: {
-              'X-GitHub-Api-Version': '2022-11-28'
-            }
-          })
-          .catch(error => {
-            console.error('Error creating workflow file:', error);
-          });
+  async createCommitActionYml() {
+    const ymlContent = `name: ForwardToProxy
+  on:
+    push:
+      branches: [ "main" ]
+      
+  jobs:
+    build:
+      runs-on: ubuntu-latest
+      steps:
+        - name: Call Proxy API
+          uses: fjogeleit/http-request-action@v1
+          with:
+            url: 'insertAPIURl.com'
+            method: 'POST'
+            file: \${{ github.event_path }}`;
 
-  */
-
-  initializeWebhook() {
-    console.log("hello world");
+    const expectedWritePath = path.join(".github", "workflows", "proxyForward");
+    const response = await this.octokitClient.repos.createOrUpdateFileContents({
+      owner: this.userAnswer.repoOwner,
+      repo: this.userAnswer.repoName,
+      path: expectedWritePath,
+      content: Buffer.from(ymlContent).toString("base64"), //the api requires the string to be encoded in base 64
+    });
   }
 }

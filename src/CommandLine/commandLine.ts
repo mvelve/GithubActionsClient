@@ -50,7 +50,7 @@ export default class CLIClient {
     while (!repoName || !repoOwner || !workFlowFileName) {
       repoOwner = await this.askQuestionAsync("Owner Name: ");
       repoName = await this.askQuestionAsync("Repository Name: ");
-      workFlowFileName = await this.askQuestionAsync("YAML Workflow Name: ");
+      workFlowFileName = await this.askQuestionAsync("YML Workflow Name: ");
     }
 
     //close the readline interface and return baseUrl to caller
@@ -63,11 +63,8 @@ export default class CLIClient {
     };
   }
 
-  private async createActionYaml() {
-    //TODO implement this function to create the yaml
-  }
-
-  private async createActionYamlWorkflow() {
+  //pass the answer around recieved from the user
+  private async createActionYamlWorkflow(client: GithubClient) {
     //open new readline
     this.rl = readline.createInterface({
       input: process.stdin,
@@ -82,7 +79,7 @@ export default class CLIClient {
     }
 
     if (userResponse === "y") {
-      this.createActionYaml();
+      //
     } else {
       this.rl.close(); // close buffer if it is not closed
       return; //end workflow
@@ -101,7 +98,8 @@ export default class CLIClient {
     const client = new GithubClient(answer);
     const actionYamlExists = client.checkActionExists();
     if (!actionYamlExists) {
-      console.log("The yaml does not exist");
+      console.log("The yml does not exist");
+      this.createActionYamlWorkflow(client); //now you will want to create the action yaml
     }
   }
 }

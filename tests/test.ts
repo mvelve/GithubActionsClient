@@ -1,3 +1,2 @@
 "use strict";
-
-//to setup mocha tests and dependencies here
+//todo is mock Mock the answer and funnel requests for timing within tests to get average

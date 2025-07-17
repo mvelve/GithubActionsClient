@@ -11,7 +11,9 @@
   "author": "Michael Velve",
   "license": "MIT",
   "devDependencies": {
+    "chai": "^5.2.1",
     "dotenv": "^17.2.0",
+    "mocha": "^11.7.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
   },
