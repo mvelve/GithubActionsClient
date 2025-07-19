@@ -64,8 +64,7 @@ export default class CLIClient {
   }
 
   //pass the answer around recieved from the user
-  private async createActionYamlWorkflow(client: GithubClient) {
-    //open new readline
+  private async createActionYmlWorkflow(client: GithubClient) {
     this.rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
@@ -74,15 +73,20 @@ export default class CLIClient {
     let userResponse = "";
     while (!userResponse || (userResponse !== "y" && userResponse !== "n")) {
       userResponse = await this.askQuestionAsync(
-        "Would you like to create an action on this repository? y/n"
+        "Would you like to create an action on this repository? y/n "
       );
     }
 
     if (userResponse === "y") {
-      //
+      try {
+        await client.createCommitActionYml();
+      } catch (err) {
+        console.error(`file could not be uploaded because of ${err}`);
+        this.rl.close(); //need to find a better way of closing the stream (no-op operation meaning can close)
+      }
     } else {
       this.rl.close(); // close buffer if it is not closed
-      return; //end workflow
+      return;
     }
   }
 
@@ -96,10 +100,11 @@ export default class CLIClient {
 
     const answer: Answer = await this.askQuestions();
     const client = new GithubClient(answer);
-    const actionYamlExists = client.checkActionExists();
-    if (!actionYamlExists) {
-      console.log("The yml does not exist");
-      this.createActionYamlWorkflow(client); //now you will want to create the action yaml
+    const actionWorkflowExists = await client.checkActionDirExists();
+
+    if (!actionWorkflowExists) {
+      console.log("The specified yml dir does not exist");
+      this.createActionYmlWorkflow(client); //now you will want to create the action yaml
     }
   }
 }

@@ -3,7 +3,7 @@ import path from "path";
 
 //load environment variables
 import dotenv from "dotenv";
-import { Octokit } from "octokit"; //may need octokit wait on this
+import { Octokit } from "@octokit/rest";
 import Answer from "../Interfaces/IAnswer";
 dotenv.config();
 
@@ -17,14 +17,13 @@ export default class GithubClient {
   }
 
   //isolate functionality within this class
-  async checkActionExists(): Promise<boolean> {
+  async checkActionDirExists(): Promise<boolean> {
     try {
       await this.octokitClient.repos.getContent({
         owner: this.userAnswer.repoOwner,
         repo: this.userAnswer.repoName,
         path: `${this.userAnswer.workFlowFileName}.yml`,
       });
-      return true;
     } catch (err: any) {
       if (err.status === 404) {
         console.log("Workflow file not found.");
@@ -33,6 +32,8 @@ export default class GithubClient {
       }
       return false;
     }
+
+    return true;
   }
 
   async createCommitActionYml() {
@@ -53,11 +54,42 @@ export default class GithubClient {
             file: \${{ github.event_path }}`;
 
     const expectedWritePath = path.join(".github", "workflows", "proxyForward");
-    const response = await this.octokitClient.repos.createOrUpdateFileContents({
+
+    await this.octokitClient.repos.createOrUpdateFileContents({
       owner: this.userAnswer.repoOwner,
       repo: this.userAnswer.repoName,
       path: expectedWritePath,
-      content: Buffer.from(ymlContent).toString("base64"), //the api requires the string to be encoded in base 64
+      message: "inserted proxy action yml",
+      content: Buffer.from(ymlContent).toString("base64"),
+      committer: {
+        name: process.env.COMMIT_AUTHOR_NAME!,
+        email: process.env.COMMIT_AUTHOR_EMAIL!,
+      },
     });
+  }
+
+  //retrieved from: https://gist.github.com/lucis/864849a7f3c347be86862a3a43994fe0
+  //default branch in github is main
+  //helper function to retrieve current commit on branch
+  private async getCurrentCommit(branch = "main") {
+    const { repoOwner, repoName } = this.userAnswer;
+
+    const { data: refData } = await this.octokitClient.git.getRef({
+      owner: repoOwner,
+      repo: repoName,
+      ref: `heads/${branch}`,
+    });
+
+    const commitSha = refData.object.sha;
+    const { data: commitData } = await this.octokitClient.git.getCommit({
+      owner: repoOwner,
+      repo: repoName,
+      commit_sha: commitSha,
+    });
+
+    return {
+      commitSha,
+      treeSha: commitData.tree.sha,
+    };
   }
 }

@@ -11,6 +11,7 @@
   "author": "Michael Velve",
   "license": "MIT",
   "devDependencies": {
+    "@types/express": "^5.0.3",
     "chai": "^5.2.1",
     "dotenv": "^17.2.0",
     "mocha": "^11.7.1",
@@ -18,6 +19,7 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
-    "octokit": "^5.0.3"
+    "@octokit/rest": "^22.0.0",
+    "express": "^5.1.0"
   }
 }
