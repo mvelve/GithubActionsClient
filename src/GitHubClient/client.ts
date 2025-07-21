@@ -17,43 +17,71 @@ export default class GithubClient {
   }
 
   //isolate functionality within this class
-  async checkActionDirExists(): Promise<boolean> {
+  async getActionFileSha(
+    filePath: string,
+    isLogsEnabled = true
+  ): Promise<string | undefined> {
+    let sha: string | undefined;
     try {
-      await this.octokitClient.repos.getContent({
+      const { data } = await this.octokitClient.repos.getContent({
         owner: this.userAnswer.repoOwner,
         repo: this.userAnswer.repoName,
-        path: `${this.userAnswer.workFlowFileName}.yml`,
+        path: filePath,
       });
-    } catch (err: any) {
-      if (err.status === 404) {
-        console.log("Workflow file not found.");
-      } else {
-        console.error("GitHub API error:", err.status, err.message);
+
+      //this checks that the file actually points to a directory
+      //in operator checks for nesting within the object
+      if (!Array.isArray(data) && "sha" in data) {
+        sha = data.sha;
       }
-      return false;
+    } catch (err: any) {
+      if (isLogsEnabled) {
+        if (err.status === 404) {
+          console.log("Workflow file not found.");
+        } else {
+          console.error("GitHub API error:", err.status, err.message);
+        }
+      }
     }
 
-    return true;
+    return sha;
   }
 
   async createCommitActionYml() {
     const ymlContent = `name: ForwardToProxy
-  on:
-    push:
-      branches: [ "main" ]
-      
-  jobs:
-    build:
-      runs-on: ubuntu-latest
-      steps:
-        - name: Call Proxy API
-          uses: fjogeleit/http-request-action@v1
-          with:
-            url: 'insertAPIURl.com'
-            method: 'POST'
-            file: \${{ github.event_path }}`;
+on:
+  push:
+    branches: [ "main" ]
 
-    const expectedWritePath = path.join(".github", "workflows", "proxyForward");
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dump GitHub event payload
+        env:
+          EVENT_PAYLOAD: \${{ toJSON(github.event) }}
+        run: |
+          echo "===== github.event payload ====="
+          echo "$EVENT_PAYLOAD"
+
+      - name: Call Proxy API
+        uses: fjogeleit/http-request-action@v1
+        with:
+          url: 'https://yourproxy.com'
+          method: 'POST'
+          data: \${{ toJSON(github.event) }}`;
+
+    //action runs on a ubuntu machine so posix paths must be used
+    const expectedWritePath = path.posix.join(
+      ".github",
+      "workflows",
+      "proxyForward.yml"
+    );
+
+    const expectedSha = await this.getActionFileSha(
+      `${this.userAnswer.workFlowFileName}.yml`,
+      false
+    );
 
     await this.octokitClient.repos.createOrUpdateFileContents({
       owner: this.userAnswer.repoOwner,
@@ -65,6 +93,7 @@ export default class GithubClient {
         name: process.env.COMMIT_AUTHOR_NAME!,
         email: process.env.COMMIT_AUTHOR_EMAIL!,
       },
+      ...(expectedSha ? { sha: expectedSha } : {}), //only update sha if expected is present
     });
   }
 

@@ -8,3 +8,5 @@ const requestOriginValidation = function (
 ) {
   //now implement
 };
+
+export default requestOriginValidation;

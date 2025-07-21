@@ -53,7 +53,7 @@ export default class CLIClient {
       workFlowFileName = await this.askQuestionAsync("YML Workflow Name: ");
     }
 
-    //close the readline interface and return baseUrl to caller
+    //close the readline interface and return baseUrl to caller (needs to be a better way of doing this)
     this.rl.close();
 
     return {
@@ -80,14 +80,13 @@ export default class CLIClient {
     if (userResponse === "y") {
       try {
         await client.createCommitActionYml();
+        console.log("Push action successfully added");
       } catch (err) {
         console.error(`file could not be uploaded because of ${err}`);
-        this.rl.close(); //need to find a better way of closing the stream (no-op operation meaning can close)
       }
-    } else {
-      this.rl.close(); // close buffer if it is not closed
-      return;
     }
+    //close the stdin stream
+    this.rl.close();
   }
 
   async startClientWorkflow() {
@@ -100,9 +99,14 @@ export default class CLIClient {
 
     const answer: Answer = await this.askQuestions();
     const client = new GithubClient(answer);
-    const actionWorkflowExists = await client.checkActionDirExists();
+    const userSpecifiedActionDir = `${answer.workFlowFileName}.yml`;
 
-    if (!actionWorkflowExists) {
+    //first time saying it does not exist on creation
+    const actionWorkFlowSha = await client.getActionFileSha(
+      userSpecifiedActionDir
+    );
+
+    if (!actionWorkFlowSha) {
       console.log("The specified yml dir does not exist");
       this.createActionYmlWorkflow(client); //now you will want to create the action yaml
     }

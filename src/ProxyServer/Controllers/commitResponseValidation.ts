@@ -6,3 +6,5 @@ const validateCommitPayload = function (
   res: Response,
   next: NextFunction
 ) {};
+
+export default validateCommitPayload;
