@@ -6,7 +6,7 @@ const requestOriginValidation = function (
   res: Response,
   next: NextFunction
 ) {
-  //now implement
+  next();
 };
 
 export default requestOriginValidation;

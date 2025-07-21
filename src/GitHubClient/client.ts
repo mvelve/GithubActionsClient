@@ -67,7 +67,7 @@ jobs:
       - name: Call Proxy API
         uses: fjogeleit/http-request-action@v1
         with:
-          url: 'https://yourproxy.com'
+          url: ${process.env.BASE_PROXY_URL}/webhooks/push
           method: 'POST'
           data: \${{ toJSON(github.event) }}`;
 
