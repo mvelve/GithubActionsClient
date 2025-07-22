@@ -16,7 +16,7 @@ export default class GithubClient {
     this.octokitClient = new Octokit({ auth: process.env.GITHUB_API_TOKEN });
   }
 
-  //isolate functionality within this class
+  //can probably refactor this function
   async getActionFileSha(
     filePath: string,
     isLogsEnabled = true
@@ -45,6 +45,26 @@ export default class GithubClient {
     }
 
     return sha;
+  }
+
+  private async uploadFileToRepo(
+    expectedWritePath: string,
+    content: any,
+    message: string,
+    expectedSha: string | undefined = undefined
+  ) {
+    await this.octokitClient.repos.createOrUpdateFileContents({
+      owner: this.userAnswer.repoOwner,
+      repo: this.userAnswer.repoName,
+      path: expectedWritePath,
+      message: message,
+      content: Buffer.from(content).toString("base64"),
+      committer: {
+        name: process.env.COMMIT_AUTHOR_NAME!,
+        email: process.env.COMMIT_AUTHOR_EMAIL!,
+      },
+      ...(expectedSha ? { sha: expectedSha } : {}), //only update sha if expected is present
+    });
   }
 
   async createCommitActionYml() {
@@ -83,42 +103,60 @@ jobs:
       false
     );
 
-    await this.octokitClient.repos.createOrUpdateFileContents({
-      owner: this.userAnswer.repoOwner,
-      repo: this.userAnswer.repoName,
-      path: expectedWritePath,
-      message: "inserted proxy action yml",
-      content: Buffer.from(ymlContent).toString("base64"),
-      committer: {
-        name: process.env.COMMIT_AUTHOR_NAME!,
-        email: process.env.COMMIT_AUTHOR_EMAIL!,
-      },
-      ...(expectedSha ? { sha: expectedSha } : {}), //only update sha if expected is present
-    });
+    const commitMessage = "inserted yml action file into repository";
+    await this.uploadFileToRepo(
+      expectedWritePath,
+      ymlContent,
+      commitMessage,
+      expectedSha
+    );
   }
 
-  //retrieved from: https://gist.github.com/lucis/864849a7f3c347be86862a3a43994fe0
-  //default branch in github is main
-  //helper function to retrieve current commit on branch
-  private async getCurrentCommit(branch = "main") {
-    const { repoOwner, repoName } = this.userAnswer;
+  private async getRepoContentSafe(filePath: string): Promise<any | object> {
+    try {
+      const { data } = await this.octokitClient.repos.getContent({
+        owner: this.userAnswer.repoOwner,
+        repo: this.userAnswer.repoName,
+        path: filePath,
+      });
+      return data;
+    } catch (err: any) {
+      console.log("data could not be retrieved");
+    }
+    return { data: null };
+  }
 
-    const { data: refData } = await this.octokitClient.git.getRef({
-      owner: repoOwner,
-      repo: repoName,
-      ref: `heads/${branch}`,
-    });
+  async uploadTestFilebyMbSizeToRepo(mbSize: number) {
+    const { data } = await this.getRepoContentSafe(
+      process.env.TEST_REPO_WRITE_PATH!
+    );
 
-    const commitSha = refData.object.sha;
-    const { data: commitData } = await this.octokitClient.git.getCommit({
-      owner: repoOwner,
-      repo: repoName,
-      commit_sha: commitSha,
-    });
+    const megabyteConversion = 1048576;
+    const byteSize = mbSize * megabyteConversion;
+    const fileContentBuffer = Buffer.alloc(byteSize);
+    const commitMessage = `inserted test file {} of size ${mbSize}`;
+    const lastFileEntry = !data ? 1 : data.length + 1;
 
-    return {
-      commitSha,
-      treeSha: commitData.tree.sha,
-    };
+    if (!data) {
+      await this.uploadFileToRepo(
+        process.env.TEST_REPO_WRITE_PATH!,
+        fileContentBuffer,
+        commitMessage.replace("{}", lastFileEntry.toString())
+      );
+    } else if (!Array.isArray(data)) {
+      console.log("path must be a directory");
+      return;
+    }
+
+    const fileWritePath = path.posix.join(
+      process.env.TEST_REPO_WRITE_PATH!,
+      `testFile-${lastFileEntry + 1}`
+    );
+
+    await this.uploadFileToRepo(
+      fileWritePath,
+      fileContentBuffer,
+      commitMessage.replace("{}", lastFileEntry.toString())
+    );
   }
 }

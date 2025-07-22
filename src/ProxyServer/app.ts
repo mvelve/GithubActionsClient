@@ -8,6 +8,7 @@ dotenv.config();
 const app = express();
 const port = 3000;
 
+//adding middleware
 app.use(express.json());
 app.use(requestOriginValidation);
 app.use(validateCommitPayload);
