@@ -98,11 +98,7 @@ jobs:
       "proxyForward.yml"
     );
 
-    const expectedSha = await this.getActionFileSha(
-      `${this.userAnswer.workFlowFileName}.yml`,
-      false
-    );
-
+    const expectedSha = await this.getActionFileSha(expectedWritePath, false);
     const commitMessage = "inserted yml action file into repository";
     await this.uploadFileToRepo(
       expectedWritePath,
@@ -112,7 +108,7 @@ jobs:
     );
   }
 
-  private async getRepoContentSafe(filePath: string): Promise<any | object> {
+  private async getRepoContentSafe(filePath: string): Promise<any | null> {
     try {
       const { data } = await this.octokitClient.repos.getContent({
         owner: this.userAnswer.repoOwner,
@@ -122,10 +118,15 @@ jobs:
       return data;
     } catch (err: any) {
       console.log("data could not be retrieved");
+      return null;
     }
-    return { data: null };
   }
 
+  //TODO create a function which allows parallel uploads
+
+  /*
+  could be parallelized and sped up if we used UUID or another unique identifier
+  */
   async uploadTestFilebyMbSizeToRepo(mbSize: number) {
     const { data } = await this.getRepoContentSafe(
       process.env.TEST_REPO_WRITE_PATH!

@@ -50,7 +50,7 @@ export default class CLIClient {
     while (!repoName || !repoOwner || !workFlowFileName) {
       repoOwner = await this.askQuestionAsync("Owner Name: ");
       repoName = await this.askQuestionAsync("Repository Name: ");
-      workFlowFileName = await this.askQuestionAsync("YML Workflow Name: ");
+      workFlowFileName = await this.askQuestionAsync("YML Workflow Name: "); //may need to remove this here
     }
 
     //close the readline interface and return baseUrl to caller (needs to be a better way of doing this)
@@ -63,19 +63,27 @@ export default class CLIClient {
     };
   }
 
+  private async repeatAskYesOrNoQuestion(question: string) {
+    let userResponse = "";
+    while (!userResponse || (userResponse !== "y" && userResponse !== "n")) {
+      userResponse = await this.askQuestionAsync(`${question} y/n `);
+    }
+
+    return userResponse;
+  }
+
   //pass the answer around recieved from the user
-  private async createActionYmlWorkflow(client: GithubClient) {
+  private async createActionYmlWorkflow(
+    client: GithubClient
+  ): Promise<boolean> {
     this.rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
     });
 
-    let userResponse = "";
-    while (!userResponse || (userResponse !== "y" && userResponse !== "n")) {
-      userResponse = await this.askQuestionAsync(
-        "Would you like to create an action on this repository? y/n "
-      );
-    }
+    const userResponse = await this.repeatAskYesOrNoQuestion(
+      "Would you like to create an action on this repository?"
+    );
 
     if (userResponse === "y") {
       try {
@@ -84,9 +92,34 @@ export default class CLIClient {
       } catch (err) {
         console.error(`file could not be uploaded because of ${err}`);
       }
+    } else {
+      console.log("Please upload file before continuing.");
+      this.rl.close();
+      return false;
     }
-    //close the stdin stream
-    this.rl.close();
+
+    return true;
+  }
+
+  private async uploadFileWorkFlow(gitClient: GithubClient) {
+    const userResponse = await this.repeatAskYesOrNoQuestion(
+      "Would you like to upload a file?"
+    );
+
+    if (userResponse === "n") {
+      console.log("workflow ended.");
+      this.rl.close();
+      return;
+    }
+
+    let mbFileSize: string | undefined;
+    while (!Number.isFinite(userResponse)) {
+      mbFileSize = await this.askQuestionAsync("Specify file size in mb: ");
+    }
+
+    const uploadTime = Date.now(); //keep a time stamp of what was uploaded
+    await gitClient.uploadTestFilebyMbSizeToRepo(Number.parseInt(mbFileSize!)); //forgive undefined
+    //now create a fetch to the sevrer sending over the time
   }
 
   async startClientWorkflow() {
@@ -98,17 +131,23 @@ export default class CLIClient {
     }
 
     const answer: Answer = await this.askQuestions();
-    const client = new GithubClient(answer);
+    const gitClient = new GithubClient(answer);
     const userSpecifiedActionDir = `${answer.workFlowFileName}.yml`;
 
     //first time saying it does not exist on creation
-    const actionWorkFlowSha = await client.getActionFileSha(
+    const actionWorkFlowSha = await gitClient.getActionFileSha(
       userSpecifiedActionDir
     );
 
     if (!actionWorkFlowSha) {
       console.log("The specified yml dir does not exist");
-      this.createActionYmlWorkflow(client); //now you will want to create the action yaml
+      const isYmlCreated = this.createActionYmlWorkflow(gitClient); //now you will want to create the action yaml
+      if (!isYmlCreated) {
+        console.log("yml not created");
+        return false;
+      }
     }
+
+    this.uploadFileWorkFlow(gitClient);
   }
 }

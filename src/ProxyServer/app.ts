@@ -21,6 +21,7 @@ app.get("/", (req, res) => {
 //this request endpoint works now as well
 app.post("/webhooks/push", (req, res) => {
   console.log("GitHub webhook received:", req.body);
+
   res.status(200).send("Webhook received");
 });
 
