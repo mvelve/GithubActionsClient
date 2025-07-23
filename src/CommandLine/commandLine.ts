@@ -121,9 +121,6 @@ export default class CLIClient {
     }
 
     const uploadTime = Date.now(); //keep a time stamp of what was uploaded
-    await gitClient.uploadTestFilebyMbSizeToRepo(mbFileSize!);
-
-    //send when it started to the server
     const res = await fetch(
       "https://horribly-hopeful-wolf.ngrok-free.app/webhooks/pushEvents/start",
       {
@@ -138,6 +135,7 @@ export default class CLIClient {
         }),
       }
     );
+    await gitClient.uploadTestFilebyMbSizeToRepo(mbFileSize!);
 
     if (res.status !== 200) {
       console.log("An error occurred sending the start time please try again.");
