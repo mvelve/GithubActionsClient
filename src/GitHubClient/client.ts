@@ -92,6 +92,7 @@ jobs:
           data: \${{ toJSON(github.event) }}`;
 
     //action runs on a ubuntu machine so posix paths must be used
+    //you may need to set this as a default file path
     const expectedWritePath = path.posix.join(
       ".github",
       "workflows",
@@ -123,12 +124,14 @@ jobs:
   }
 
   //TODO create a function which allows parallel uploads
+  //should take an array of file sizes
+  async uploadNTestFilesParallel(...file: number[]) {}
 
   /*
   could be parallelized and sped up if we used UUID or another unique identifier
   */
   async uploadTestFilebyMbSizeToRepo(mbSize: number) {
-    const { data } = await this.getRepoContentSafe(
+    const data = await this.getRepoContentSafe(
       process.env.TEST_REPO_WRITE_PATH!
     );
 
@@ -138,13 +141,7 @@ jobs:
     const commitMessage = `inserted test file {} of size ${mbSize}`;
     const lastFileEntry = !data ? 1 : data.length + 1;
 
-    if (!data) {
-      await this.uploadFileToRepo(
-        process.env.TEST_REPO_WRITE_PATH!,
-        fileContentBuffer,
-        commitMessage.replace("{}", lastFileEntry.toString())
-      );
-    } else if (!Array.isArray(data)) {
+    if (data && !Array.isArray(data)) {
       console.log("path must be a directory");
       return;
     }
@@ -155,9 +152,11 @@ jobs:
     );
 
     await this.uploadFileToRepo(
-      fileWritePath,
+      data ? fileWritePath : process.env.TEST_REPO_WRITE_PATH!,
       fileContentBuffer,
       commitMessage.replace("{}", lastFileEntry.toString())
     );
+
+    console.log("file uploaded successfully");
   }
 }

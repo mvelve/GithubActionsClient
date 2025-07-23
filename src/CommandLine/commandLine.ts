@@ -112,14 +112,38 @@ export default class CLIClient {
       return;
     }
 
-    let mbFileSize: string | undefined;
-    while (!Number.isFinite(userResponse)) {
-      mbFileSize = await this.askQuestionAsync("Specify file size in mb: ");
+    let mbFileSize: number | undefined;
+    while (!Number.isFinite(mbFileSize)) {
+      const userFileSize = await this.askQuestionAsync(
+        "Specify file size in mb: "
+      );
+      mbFileSize = Number.parseFloat(userFileSize.trim());
     }
 
     const uploadTime = Date.now(); //keep a time stamp of what was uploaded
-    await gitClient.uploadTestFilebyMbSizeToRepo(Number.parseInt(mbFileSize!)); //forgive undefined
-    //now create a fetch to the sevrer sending over the time
+    await gitClient.uploadTestFilebyMbSizeToRepo(mbFileSize!);
+
+    //send when it started to the server
+    const res = await fetch(
+      "https://horribly-hopeful-wolf.ngrok-free.app/webhooks/pushEvents/start",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+
+        body: JSON.stringify({
+          uploadStart: uploadTime,
+          mbFileSize: mbFileSize,
+        }),
+      }
+    );
+
+    if (res.status !== 200) {
+      console.log("An error occurred sending the start time.");
+      this.rl.close();
+      return;
+    }
   }
 
   async startClientWorkflow() {
@@ -141,13 +165,14 @@ export default class CLIClient {
 
     if (!actionWorkFlowSha) {
       console.log("The specified yml dir does not exist");
-      const isYmlCreated = this.createActionYmlWorkflow(gitClient); //now you will want to create the action yaml
+      const isYmlCreated = await this.createActionYmlWorkflow(gitClient); //now you will want to create the action yaml
       if (!isYmlCreated) {
         console.log("yml not created");
         return false;
       }
     }
 
-    this.uploadFileWorkFlow(gitClient);
+    //await the uploadFileWorkFlow
+    await this.uploadFileWorkFlow(gitClient);
   }
 }
