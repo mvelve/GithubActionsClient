@@ -14,37 +14,67 @@ app.use(requestOriginValidation);
 app.use(validateCommitPayload);
 
 //bad practice but for testing we will keep these here for now
-type throughputStartEntry = [number, number];
-const finishTimes: number[] = [];
-const startTimes: throughputStartEntry[] = [];
+type ThroughputLog = {
+  uploadStart: number;
+  uploadEnd?: number;
+  mbFileSize: number;
+};
+
+const uploadLogs: ThroughputLog[] = [];
 
 //this request endpoint works now as well
 //an echo ednpoint
 app.post("/webhooks/push", (req, res) => {
-  finishTimes.push(Date.now());
+  let log: ThroughputLog | undefined;
+  for (let i = uploadLogs.length - 1; i >= 0; i--) {
+    if (uploadLogs[i].uploadEnd === undefined) {
+      log = uploadLogs[i];
+      break;
+    }
+  }
+
+  if (!log) {
+    return res.status(400).send("No matching uploadStart found");
+  }
+
+  log.uploadEnd = Date.now();
   console.log("GitHub webhook received:", req.body);
   res.status(200).send("Webhook received");
 });
 
 app.post("/webhooks/pushEvents/start", (req, res) => {
   const { uploadStart, mbFileSize } = req.body;
-  startTimes.push([uploadStart, mbFileSize]);
-  res.status(200).send("start time reconrded");
+
+  if (
+    typeof uploadStart !== "number" ||
+    typeof mbFileSize !== "number" ||
+    isNaN(uploadStart) ||
+    isNaN(mbFileSize)
+  ) {
+    return res.status(400).send("Invalid input");
+  }
+
+  uploadLogs.push({ uploadStart, mbFileSize });
+  res.status(200).send("start time recorded");
 });
 
 app.get("/webhooks/pushEvents/throughputs", (_, res) => {
-  const throughputData = finishTimes.map((endTime, idx) => {
-    const [uploadStart, mbFileSize] = startTimes[idx];
-    const durationInSeconds = (endTime - uploadStart) / 1000;
-    const throughputMBps = mbFileSize / durationInSeconds;
+  const throughputData = uploadLogs
+    .filter((entry) => entry.uploadEnd !== undefined)
+    .map(({ uploadStart, uploadEnd, mbFileSize }) => {
+      if (!uploadEnd || uploadEnd < uploadStart) return null;
 
-    return {
-      uploadStart,
-      uploadEnd: endTime,
-      mbFileSize,
-      throughputMBps,
-    };
-  });
+      const durationInSeconds = (uploadEnd - uploadStart) / 1000;
+      const throughputMBps = mbFileSize / durationInSeconds;
+
+      return {
+        uploadStart,
+        uploadEnd,
+        mbFileSize,
+        throughputMBps,
+      };
+    })
+    .filter((entry): entry is Exclude<typeof entry, null> => entry !== null);
 
   res.json(throughputData);
 });
