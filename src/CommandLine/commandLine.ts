@@ -103,11 +103,11 @@ export default class CLIClient {
 
   private async uploadFileWorkFlow(gitClient: GithubClient) {
     const userResponse = await this.repeatAskYesOrNoQuestion(
-      "Would you like to upload a file?"
+      "Continue to upload a file?"
     );
 
     if (userResponse === "n") {
-      console.log("workflow ended.");
+      console.log("workflow ended file not uploaded.");
       this.rl.close();
       return;
     }
@@ -140,10 +140,22 @@ export default class CLIClient {
     );
 
     if (res.status !== 200) {
-      console.log("An error occurred sending the start time.");
+      console.log("An error occurred sending the start time please try again.");
       this.rl.close();
       return;
     }
+
+    const uploadAgainRes = await this.repeatAskYesOrNoQuestion(
+      "would you like to upload another file? "
+    );
+
+    //recursively call to keep working
+    if (uploadAgainRes == "y") {
+      await this.uploadFileWorkFlow(gitClient);
+    }
+
+    //close once workflow is finished
+    this.rl.close();
   }
 
   async startClientWorkflow() {

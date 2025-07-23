@@ -19,6 +19,7 @@ const finishTimes: number[] = [];
 const startTimes: throughputStartEntry[] = [];
 
 //this request endpoint works now as well
+//an echo ednpoint
 app.post("/webhooks/push", (req, res) => {
   finishTimes.push(Date.now());
   console.log("GitHub webhook received:", req.body);

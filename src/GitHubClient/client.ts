@@ -1,10 +1,10 @@
 "use strict";
 import path from "path";
-
-//load environment variables
 import dotenv from "dotenv";
 import { Octokit } from "@octokit/rest";
+import { randomUUID } from "crypto";
 import Answer from "../Interfaces/IAnswer";
+
 dotenv.config();
 
 export default class GithubClient {
@@ -123,24 +123,43 @@ jobs:
     }
   }
 
-  //TODO create a function which allows parallel uploads
-  //should take an array of file sizes
-  async uploadNTestFilesParallel(...file: number[]) {}
+  private async allocateSizeBuffer(mbSize: number): Promise<Buffer> {
+    const megabyteConversion = 1048576;
+    const byteSize = mbSize * megabyteConversion;
+    return Buffer.alloc(byteSize);
+  }
 
-  /*
-  could be parallelized and sped up if we used UUID or another unique identifier
-  */
+  //uses UUID to avoid file name collisions and parllelizes entries
+  //use for testing if needed
+  async uploadNTestFilesParallel(fileSizes: number[]) {
+    const uploadPromises = fileSizes.map(async (size) => {
+      const uuid = randomUUID();
+      return this.uploadFileToRepo(
+        path.posix.join(
+          process.env.PARALLEL_INSERT_WRITE_PATH!,
+          `file-${uuid}`
+        ),
+        await this.allocateSizeBuffer(size),
+        `inserted file-${uuid}`
+      );
+    });
+
+    await Promise.all(uploadPromises);
+    console.log(`${fileSizes.length} inserted in parallel`);
+  }
+
+  //sequentially inserts files into the test directory named one after another
+  // not parallelizable but easy to test
   async uploadTestFilebyMbSizeToRepo(mbSize: number) {
     const data = await this.getRepoContentSafe(
       process.env.TEST_REPO_WRITE_PATH!
     );
 
-    const megabyteConversion = 1048576;
-    const byteSize = mbSize * megabyteConversion;
-    const fileContentBuffer = Buffer.alloc(byteSize);
-    const commitMessage = `inserted test file {} of size ${mbSize}`;
+    const fileContentBuffer = await this.allocateSizeBuffer(mbSize);
     const lastFileEntry = !data ? 1 : data.length + 1;
+    const commitMessage = `inserted test file {} of size ${mbSize}`;
 
+    //check that thing is an actual directory
     if (data && !Array.isArray(data)) {
       console.log("path must be a directory");
       return;
@@ -152,7 +171,7 @@ jobs:
     );
 
     await this.uploadFileToRepo(
-      data ? fileWritePath : process.env.TEST_REPO_WRITE_PATH!,
+      fileWritePath,
       fileContentBuffer,
       commitMessage.replace("{}", lastFileEntry.toString())
     );
