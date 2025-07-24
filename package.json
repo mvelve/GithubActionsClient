@@ -6,12 +6,15 @@
   "scripts": {
     "dev": "ts-node src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "test": "mocha -r ts-node/register 'tests/**/*.test.ts'"
   },
   "author": "Michael Velve",
   "license": "MIT",
   "devDependencies": {
+    "@types/chai": "^5.2.2",
     "@types/express": "^5.0.3",
+    "@types/mocha": "^10.0.10",
     "chai": "^5.2.1",
     "dotenv": "^17.2.0",
     "mocha": "^11.7.1",

@@ -120,6 +120,8 @@ export default class CLIClient {
       mbFileSize = Number.parseFloat(userFileSize.trim());
     }
 
+    //you need to make a workflow dispatch event
+
     const uploadTime = Date.now(); //keep a time stamp of what was uploaded
     const res = await fetch(
       "https://horribly-hopeful-wolf.ngrok-free.app/webhooks/pushEvents/start",
@@ -135,7 +137,20 @@ export default class CLIClient {
         }),
       }
     );
+
+    // call to octokit rest url for kicking off GitHub action (other scenario of invoking actions)
+    // whether difference in latency actions direclty or manually triggered
+    //10 parallel connections max
+
+    /*
+    hitting the endpoint a lot of times to see what happens with extra load (n = 100)
+    total latency of having 100 jobs (not neccessarily parallel)
+    */
+
     await gitClient.uploadTestFilebyMbSizeToRepo(mbFileSize!);
+
+    //use this to trigger the last workflow run
+    // await gitClient.triggerLastWorkflow();
 
     if (res.status !== 200) {
       console.log("An error occurred sending the start time please try again.");

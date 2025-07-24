@@ -69,9 +69,16 @@ export default class GithubClient {
 
   async createCommitActionYml() {
     const ymlContent = `name: ForwardToProxy
+
 on:
   push:
     branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      trigger_reason:
+        description: 'Reason for manual trigger'
+        required: false
+        default: 'Manual dispatch'
 
 jobs:
   build:
@@ -146,6 +153,27 @@ jobs:
 
     await Promise.all(uploadPromises);
     console.log(`${fileSizes.length} inserted in parallel`);
+  }
+
+  async triggerLastWorkflow() {
+    const { repoOwner, repoName } = this.userAnswer;
+    const { data } = await this.octokitClient.rest.actions.listRepoWorkflows({
+      owner: repoOwner,
+      repo: repoName,
+    });
+
+    const lastWorkflowId = data.workflows.slice(-1)[0].id;
+
+    //triggers the updated script with workflow dispatch
+    await this.octokitClient.actions.createWorkflowDispatch({
+      owner: repoOwner,
+      repo: repoName,
+      workflow_id: lastWorkflowId,
+      ref: "main",
+      inputs: {
+        trigger: "manual invocation of last workflow",
+      },
+    });
   }
 
   //sequentially inserts files into the test directory named one after another

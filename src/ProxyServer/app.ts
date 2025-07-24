@@ -42,6 +42,10 @@ app.post("/webhooks/push", (req, res) => {
   res.status(200).send("Webhook received");
 });
 
+app.post("/webhooks/manualTriggers/start", (req, res) => {
+  const { uploadStart } = req.body;
+});
+
 app.post("/webhooks/pushEvents/start", (req, res) => {
   const { uploadStart, mbFileSize } = req.body;
 
