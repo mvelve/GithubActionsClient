@@ -101,6 +101,48 @@ export default class CLIClient {
     return true;
   }
 
+  //uploads file and returns megaByte size of upload
+  private async promptCommitUploadSize(): Promise<number> {
+    let mbFileSize: number | undefined;
+    while (!Number.isFinite(mbFileSize)) {
+      const userFileSize = await this.askQuestionAsync(
+        "Specify file size in mb: "
+      );
+      mbFileSize = Number.parseFloat(userFileSize.trim());
+    }
+
+    return mbFileSize!;
+  }
+
+  private async postStartTime(payload: {
+    uploadStart: number;
+    mbFileSize: number;
+    origin: string;
+  }): Promise<Response> {
+    const startPushTimeUrl = new URL(
+      "webhooks/pushEvents/start",
+      process.env.BASE_PROXY_URL
+    );
+
+    return fetch(startPushTimeUrl.toString(), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+  }
+
+  /*
+      // call to octokit rest url for kicking off GitHub action (other scenario of invoking actions)
+    // whether difference in latency actions direclty or manually triggered
+    //10 parallel connections max
+
+  
+    hitting the endpoint a lot of times to see what happens with extra load (n = 100)
+    total latency of having 100 jobs (not neccessarily parallel)
+    */
+
   private async uploadFileWorkFlow(gitClient: GithubClient) {
     const userResponse = await this.repeatAskYesOrNoQuestion(
       "Continue to upload a file?"
@@ -112,47 +154,32 @@ export default class CLIClient {
       return;
     }
 
-    let mbFileSize: number | undefined;
-    while (!Number.isFinite(mbFileSize)) {
-      const userFileSize = await this.askQuestionAsync(
-        "Specify file size in mb: "
-      );
-      mbFileSize = Number.parseFloat(userFileSize.trim());
-    }
-
-    //you need to make a workflow dispatch event
-
-    const uploadTime = Date.now(); //keep a time stamp of what was uploaded
-    const res = await fetch(
-      "https://horribly-hopeful-wolf.ngrok-free.app/webhooks/pushEvents/start",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-
-        body: JSON.stringify({
-          uploadStart: uploadTime,
-          mbFileSize: mbFileSize,
-        }),
-      }
+    const uploadTime = Date.now();
+    const userRes = await this.repeatAskYesOrNoQuestion(
+      "Trigger echo commit action manually 0 mb? "
     );
 
-    // call to octokit rest url for kicking off GitHub action (other scenario of invoking actions)
-    // whether difference in latency actions direclty or manually triggered
-    //10 parallel connections max
+    let echoServerRes: Response;
 
-    /*
-    hitting the endpoint a lot of times to see what happens with extra load (n = 100)
-    total latency of having 100 jobs (not neccessarily parallel)
-    */
+    if (userRes === "y") {
+      echoServerRes = await this.postStartTime({
+        uploadStart: uploadTime,
+        mbFileSize: 0,
+        origin: "Manual",
+      });
+      await gitClient.triggerLastWorkflow();
+    } else {
+      const mbFileSize = await this.promptCommitUploadSize();
+      echoServerRes = await this.postStartTime({
+        uploadStart: uploadTime,
+        mbFileSize: mbFileSize,
+        origin: "commit push",
+      });
 
-    await gitClient.uploadTestFilebyMbSizeToRepo(mbFileSize!);
+      await gitClient.uploadTestFilebyMbSizeToRepo(mbFileSize);
+    }
 
-    //use this to trigger the last workflow run
-    // await gitClient.triggerLastWorkflow();
-
-    if (res.status !== 200) {
+    if (echoServerRes.status !== 200) {
       console.log("An error occurred sending the start time please try again.");
       this.rl.close();
       return;

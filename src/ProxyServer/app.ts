@@ -2,7 +2,7 @@
 import dotenv from "dotenv";
 import validateCommitPayload from "./Controllers/commitResponseValidation";
 import requestOriginValidation from "./Controllers/originValidation";
-import express from "express"; //fix module not found error here do not know why
+import express from "express";
 dotenv.config();
 
 const app = express();
@@ -42,10 +42,6 @@ app.post("/webhooks/push", (req, res) => {
   res.status(200).send("Webhook received");
 });
 
-app.post("/webhooks/manualTriggers/start", (req, res) => {
-  const { uploadStart } = req.body;
-});
-
 app.post("/webhooks/pushEvents/start", (req, res) => {
   const { uploadStart, mbFileSize } = req.body;
 
@@ -58,7 +54,10 @@ app.post("/webhooks/pushEvents/start", (req, res) => {
     return res.status(400).send("Invalid input");
   }
 
+  // you will need to change this here
+
   uploadLogs.push({ uploadStart, mbFileSize });
+
   res.status(200).send("start time recorded");
 });
 

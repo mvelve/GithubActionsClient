@@ -164,14 +164,13 @@ jobs:
 
     const lastWorkflowId = data.workflows.slice(-1)[0].id;
 
-    //triggers the updated script with workflow dispatch
     await this.octokitClient.actions.createWorkflowDispatch({
       owner: repoOwner,
       repo: repoName,
       workflow_id: lastWorkflowId,
       ref: "main",
       inputs: {
-        trigger: "manual invocation of last workflow",
+        trigger_reason: "manual invocation of last workflow",
       },
     });
   }
