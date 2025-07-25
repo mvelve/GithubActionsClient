@@ -157,17 +157,17 @@ jobs:
 
   async triggerLastWorkflow() {
     const { repoOwner, repoName } = this.userAnswer;
-    const { data } = await this.octokitClient.rest.actions.listRepoWorkflows({
-      owner: repoOwner,
-      repo: repoName,
-    });
+    // const { data } = await this.octokitClient.rest.actions.listRepoWorkflows({
+    //   owner: repoOwner,
+    //   repo: repoName,
+    // });
 
-    const lastWorkflowId = data.workflows.slice(-1)[0].id; // need to harcode this
+    // const lastWorkflowId = data.workflows.slice(-1)[0].id;
 
     await this.octokitClient.actions.createWorkflowDispatch({
       owner: repoOwner,
       repo: repoName,
-      workflow_id: lastWorkflowId,
+      workflow_id: 176006606,
       ref: "main",
       inputs: {
         trigger_reason: "manual invocation of last workflow",
