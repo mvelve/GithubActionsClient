@@ -162,7 +162,7 @@ jobs:
       repo: repoName,
     });
 
-    const lastWorkflowId = data.workflows.slice(-1)[0].id;
+    const lastWorkflowId = data.workflows.slice(-1)[0].id; // need to harcode this
 
     await this.octokitClient.actions.createWorkflowDispatch({
       owner: repoOwner,

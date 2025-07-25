@@ -8,16 +8,17 @@ dotenv.config();
 const app = express();
 const port = 3000;
 
-//adding middleware (validators not complete but not necessary)
+//adding middleware only json parser necessary
+//other middleware not implemented
 app.use(express.json());
 app.use(requestOriginValidation);
 app.use(validateCommitPayload);
 
-//bad practice but for testing we will keep these here for now
 type ThroughputLog = {
   uploadStart: number;
   uploadEnd?: number;
   mbFileSize: number;
+  origin: string; //for now a string just to see where it is coming from
 };
 
 const uploadLogs: ThroughputLog[] = [];
@@ -43,7 +44,7 @@ app.post("/webhooks/push", (req, res) => {
 });
 
 app.post("/webhooks/pushEvents/start", (req, res) => {
-  const { uploadStart, mbFileSize } = req.body;
+  const { uploadStart, mbFileSize, origin } = req.body;
 
   if (
     typeof uploadStart !== "number" ||
@@ -54,14 +55,34 @@ app.post("/webhooks/pushEvents/start", (req, res) => {
     return res.status(400).send("Invalid input");
   }
 
-  // you will need to change this here
-
-  uploadLogs.push({ uploadStart, mbFileSize });
-
+  uploadLogs.push({ uploadStart, mbFileSize, origin });
   res.status(200).send("start time recorded");
 });
 
+app.get("/webhooks/pushEvents/endDelay", (_, res) => {
+  const endToEndData = uploadLogs
+    .filter((entry) => entry.uploadEnd !== undefined)
+    .map(({ uploadStart, uploadEnd }) => {
+      if (!uploadEnd || uploadEnd < uploadStart) return null;
+
+      const durationInSeconds = (uploadEnd - uploadStart) / 1000;
+
+      return {
+        uploadStart,
+        uploadEnd,
+        durationInSeconds,
+      };
+    })
+    .filter((entry): entry is Exclude<typeof entry, null> => entry !== null);
+
+  res.json(endToEndData);
+});
+
 app.get("/webhooks/pushEvents/throughputs", (_, res) => {
+  if (uploadLogs.length > 1 && uploadLogs[0].origin === "Manual") {
+    res.status(500).send("cannot calculate throughput for manual invocations");
+  }
+
   const throughputData = uploadLogs
     .filter((entry) => entry.uploadEnd !== undefined)
     .map(({ uploadStart, uploadEnd, mbFileSize }) => {

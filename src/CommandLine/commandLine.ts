@@ -133,16 +133,6 @@ export default class CLIClient {
     });
   }
 
-  /*
-      // call to octokit rest url for kicking off GitHub action (other scenario of invoking actions)
-    // whether difference in latency actions direclty or manually triggered
-    //10 parallel connections max
-
-  
-    hitting the endpoint a lot of times to see what happens with extra load (n = 100)
-    total latency of having 100 jobs (not neccessarily parallel)
-    */
-
   private async uploadFileWorkFlow(gitClient: GithubClient) {
     const userResponse = await this.repeatAskYesOrNoQuestion(
       "Continue to upload a file?"
@@ -208,7 +198,7 @@ export default class CLIClient {
 
     const answer: Answer = await this.askQuestions();
     const gitClient = new GithubClient(answer);
-    const userSpecifiedActionDir = `${answer.workFlowFileName}.yml`;
+    const userSpecifiedActionDir = `.github/workflows/${answer.workFlowFileName}.yml`;
 
     //first time saying it does not exist on creation
     const actionWorkFlowSha = await gitClient.getActionFileSha(
